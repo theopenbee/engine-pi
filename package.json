@@ -1,6 +1,6 @@
 {
   "name": "@theopenbee/engine-pi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "pi engine plugin for openbee",
   "keywords": [
     "openbee",

@@ -29,7 +29,7 @@ test("manifest describes the pi engine", () => {
 test("package.json publishes dist, assets and the manifest", () => {
   const pkg = readJson("package.json");
   assert.equal(pkg.name, "@theopenbee/engine-pi");
-  assert.equal(pkg.version, "0.1.0");
+  assert.equal(pkg.version, "0.1.1");
   assert.equal(pkg.type, "module");
   assert.equal(pkg.license, "MIT");
   assert.deepEqual(pkg.files, ["dist", "assets", "openbee.plugin.json"]);
