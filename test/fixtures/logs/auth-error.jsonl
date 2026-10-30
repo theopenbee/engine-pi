@@ -1,0 +1,2 @@
+{"type":"session","version":3,"id":"abc","timestamp":"2026-04-15T03:36:31.419Z","cwd":"/tmp"}
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"hello"}]},{"role":"assistant","content":[],"stopReason":"error","errorMessage":"401 {\"error\":{\"type\":\"authentication_error\",\"message\":\"The API Key appears to be invalid or may have expired.\"}}"}]}

@@ -1,0 +1,8 @@
+not json at all
+{"type":"message","message":{"role":"assistant","model":"m-a","usage":{"input":1,"output":2}}}
+
+{"type":"message","message":{"role":"assistant","model":"m-a"}}
+{"type":"message","message":{"role":"assistant","model":"m-a","usage":null}}
+{"type":"message"}
+[1,2,3]
+{"type":"message","message":{"role":"assistant","model":"m-a","usage":{"input":10,"output":20,"cacheWrite":3,"cacheRead":4}}}

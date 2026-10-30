@@ -1,0 +1,16 @@
+{
+  "protocol_version": 1,
+  "type": "engine",
+  "id": "pi",
+  "name": { "en": "Pi", "zh": "Pi" },
+  "description": { "en": "Runs tasks with the pi coding agent", "zh": "用 pi 编程助手执行任务" },
+  "command": ["node", "dist/index.js"],
+  "config": [
+    {
+      "key": "path",
+      "type": "string",
+      "label": { "en": "pi path", "zh": "pi 路径" },
+      "help": { "en": "Leave empty to use pi on PATH", "zh": "留空则使用 PATH 里的 pi" }
+    }
+  ]
+}

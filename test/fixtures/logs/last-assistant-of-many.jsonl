@@ -1,0 +1,1 @@
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"question"}]},{"role":"assistant","content":[{"type":"text","text":"draft"}]},{"role":"assistant","content":[{"type":"text","text":"final"}]},{"role":"user","content":[{"type":"text","text":"ignored"}]}]}

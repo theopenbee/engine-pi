@@ -1,0 +1,5 @@
+plain text before the events
+not json {"type":"agent_end"}
+{"type":"agent_end","messages":
+[{"role":"assistant","content":[{"type":"text","text":"wrong"}]}]
+  {"type":"agent_end","messages":[{"role":"assistant","content":[{"type":"text","text":"indented"}]}]}  
