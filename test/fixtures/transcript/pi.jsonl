@@ -20,6 +20,10 @@ Warning: reading the configuration took 3s
 {"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Fixing the typo."},{"type":"toolCall","id":"call_edit_1","name":"edit","arguments":{"path":"/work/project/README.md"}}],"stopReason":"toolUse","timestamp":1767225604000}}
 {"type":"tool_execution_start","toolCallId":"call_edit_1","toolName":"edit","args":{"path":"/work/project/README.md","edits":[{"oldText":"smal","newText":"small"}]}}
 {"type":"tool_execution_end","toolCallId":"call_edit_1","toolName":"edit","result":{"content":[{"type":"text","text":"Successfully replaced 1 block in /work/project/README.md."}],"details":{}},"isError":false,"durationMs":8}
+{"type":"tool_execution_start","toolCallId":"call_edit_2","toolName":"edit","args":{"path":"/work/project/src/main.ts","edits":[{"oldText":"alpha\nbeta\ngamma","newText":"alpha\nBETA\ngamma"}]}}
+{"type":"tool_execution_end","toolCallId":"call_edit_2","toolName":"edit","result":{"content":[{"type":"text","text":"Successfully replaced 1 block(s) in /work/project/src/main.ts."}],"details":{"diff":" 1 alpha\n-2 beta\n+2 BETA\n 3 gamma","patch":"Index: /work/project/src/main.ts\n","firstChangedLine":2}},"isError":false,"durationMs":9}
+{"type":"tool_execution_start","toolCallId":"call_edit_3","toolName":"edit","args":{"path":"/work/project/old.md","oldText":"a","newText":"b"}}
+{"type":"tool_execution_end","toolCallId":"call_edit_3","toolName":"edit","result":{"content":[{"type":"text","text":"Successfully replaced 1 block(s) in /work/project/old.md."}],"details":{}},"isError":false,"durationMs":4}
 {"type":"tool_execution_start","toolCallId":"call_write_1","toolName":"write","args":{"path":"/work/project/NOTES.md","content":"notes"}}
 {"type":"tool_execution_end","toolCallId":"call_write_1","toolName":"write","result":{"content":[{"type":"text","text":"EACCES: permission denied"}],"details":{}},"isError":true}
 {"type":"tool_execution_start","toolCallId":"call_bash_2","toolName":"bash","args":{"command":"false"}}

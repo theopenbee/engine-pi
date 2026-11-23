@@ -81,6 +81,7 @@ test("the pi fixture becomes the expected steps", async () => {
       kind: "edit",
       name: "edit",
       summary: "/work/project/README.md",
+      diff: "-smal\n+small",
       output: "Successfully replaced 1 block in /work/project/README.md.",
       status: "done",
       duration_ms: 8,
@@ -88,8 +89,29 @@ test("the pi fixture becomes the expected steps", async () => {
     {
       type: "tool",
       kind: "edit",
+      name: "edit",
+      summary: "/work/project/src/main.ts",
+      diff: " alpha\n-beta\n+BETA\n gamma",
+      output: "Successfully replaced 1 block(s) in /work/project/src/main.ts.",
+      status: "done",
+      duration_ms: 9,
+    },
+    {
+      type: "tool",
+      kind: "edit",
+      name: "edit",
+      summary: "/work/project/old.md",
+      diff: "-a\n+b",
+      output: "Successfully replaced 1 block(s) in /work/project/old.md.",
+      status: "done",
+      duration_ms: 4,
+    },
+    {
+      type: "tool",
+      kind: "edit",
       name: "write",
       summary: "/work/project/NOTES.md",
+      diff: "+notes",
       output: "EACCES: permission denied",
       status: "error",
     },
@@ -202,6 +224,94 @@ test("tool kinds follow the tool name", async () => {
     if (summary !== undefined) expected.summary = summary;
     assert.deepEqual(steps, [expected], `${toolName} ${JSON.stringify(args)}`);
   }
+});
+
+async function diffOf(toolName, args, result = { content: [] }) {
+  const [step] = await transcriptOfEvents(toolEvents(toolName, args, result));
+  return step.diff;
+}
+
+test("an edit diff lists removed lines before added lines for every edit", async () => {
+  const args = {
+    path: "/a",
+    edits: [
+      { oldText: "one\ntwo", newText: "uno" },
+      { oldText: "x", newText: "y\nz" },
+    ],
+  };
+  assert.equal(await diffOf("edit", args), "-one\n-two\n+uno\n-x\n+y\n+z");
+});
+
+test("an edit diff skips an empty side and invalid edits", async () => {
+  const args = {
+    path: "/a",
+    edits: [{ oldText: "", newText: "added" }, { oldText: "gone", newText: "" }, { oldText: 1 }, "junk", null],
+  };
+  assert.equal(await diffOf("edit", args), "+added\n-gone");
+  assert.equal(await diffOf("edit", { path: "/a", edits: [] }), undefined);
+  assert.equal(await diffOf("edit", { path: "/a" }), undefined);
+  assert.equal(await diffOf("edit", { path: "/a", edits: [{ oldText: "", newText: "" }] }), undefined);
+});
+
+test("an edit diff accepts legacy oldText and newText at the top level", async () => {
+  assert.equal(await diffOf("edit", { path: "/a", oldText: "a", newText: "b" }), "-a\n+b");
+  const args = { path: "/a", edits: [{ oldText: "x", newText: "y" }], oldText: "a", newText: "b" };
+  assert.equal(await diffOf("edit", args), "-x\n+y\n-a\n+b");
+});
+
+test("an edit diff accepts edits sent as a JSON string or a single object", async () => {
+  const edits = [{ oldText: "a", newText: "b" }];
+  assert.equal(await diffOf("edit", { path: "/a", edits: JSON.stringify(edits) }), "-a\n+b");
+  assert.equal(await diffOf("edit", { path: "/a", edits: JSON.stringify(edits[0]) }), "-a\n+b");
+  assert.equal(await diffOf("edit", { path: "/a", edits: edits[0] }), "-a\n+b");
+  assert.equal(await diffOf("edit", { path: "/a", edits: "not json" }), undefined);
+});
+
+test("an edit diff drops one trailing newline and keeps inner blank lines", async () => {
+  const args = { path: "/a", edits: [{ oldText: "a\n\nb\n", newText: "c\r\nd\r\n" }] };
+  assert.equal(await diffOf("edit", args), "-a\n-\n-b\n+c\n+d");
+});
+
+test("a write diff adds every content line", async () => {
+  assert.equal(await diffOf("write", { path: "/a", content: "one\ntwo\n" }), "+one\n+two");
+  assert.equal(await diffOf("write", { path: "/a", content: "" }), undefined);
+  assert.equal(await diffOf("write", { path: "/a", content: 5 }), undefined);
+  assert.equal(await diffOf("write", { path: "/a" }), undefined);
+});
+
+test("the diff in the edit result details is preferred and loses its line numbers", async () => {
+  const details = { diff: "  8 head\n- 9 old line\n+ 9 new line\n+10 extra\n 11 tail\n    ...", patch: "ignored" };
+  const result = { content: [{ type: "text", text: "ok" }], details };
+  const diff = await diffOf("edit", { path: "/a", edits: [{ oldText: "other", newText: "text" }] }, result);
+  assert.equal(diff, " head\n-old line\n+new line\n+extra\n tail\n ...");
+});
+
+test("details diff keeps blank lines and content that starts with digits or spaces", async () => {
+  const details = { diff: " 1 a\n-2 \n+2   42 indented\n+3 \n 4 b" };
+  const diff = await diffOf("edit", { path: "/a", edits: [] }, { content: [], details });
+  assert.equal(diff, " a\n-\n+  42 indented\n+\n b");
+});
+
+test("a details diff that is not in the pi line format falls back to the arguments", async () => {
+  const args = { path: "/a", edits: [{ oldText: "a", newText: "b" }] };
+  for (const details of [{ diff: "" }, { diff: "   " }, { diff: 5 }, { diff: "--- a\n+++ b\n@@ -1 +1 @@" }, { diff: "    ..." }, {}, null, "text"]) {
+    assert.equal(await diffOf("edit", args, { content: [], details }), "-a\n+b", JSON.stringify(details));
+  }
+});
+
+test("details diff is only used for edit tools", async () => {
+  const details = { diff: "+1 x" };
+  assert.equal(await diffOf("write", { path: "/a", content: "y" }, { content: [], details }), "+y");
+  assert.equal(await diffOf("bash", { command: "x" }, { content: [], details }), undefined);
+  assert.equal(await diffOf("mcp__x__edit", { path: "/a", edits: [{ oldText: "a", newText: "b" }] }), undefined);
+});
+
+test("a long edit diff is clipped like tool output", async () => {
+  const content = Array.from({ length: 1000 }, (_, i) => `line ${i}`).join("\n");
+  const diff = await diffOf("write", { path: "/a", content });
+  assert.equal(diff.length, 4000);
+  assert.ok(diff.includes("\n…\n"));
+  assert.ok(diff.endsWith("+line 999"));
 });
 
 test("a tool output uses the first text block", async () => {

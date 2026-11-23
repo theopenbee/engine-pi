@@ -460,7 +460,11 @@ for (const runtime of runtimes) {
     const logPath = join(freshDir("logs"), "exec.log");
     copyFileSync(join(here, "fixtures", "transcript", "pi.jsonl"), logPath);
     const res = response(await runPlugin(runtime, baseRequest("transcript", { log_path: logPath })));
-    assert.equal(res.result.steps.length, 20);
+    assert.equal(res.result.steps.length, 22);
+    assert.deepEqual(
+      res.result.steps.filter((step) => step.diff !== undefined).map((step) => step.diff),
+      ["-smal\n+small", " alpha\n-beta\n+BETA\n gamma", "-a\n+b", "+notes"],
+    );
     assert.deepEqual(res.result.steps[0], { type: "thinking", text: "I should look at the files first." });
     assert.deepEqual(res.result.steps.at(-1), { type: "error", text: "429 rate limit exceeded after 3 attempts" });
   });

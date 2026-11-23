@@ -48,6 +48,64 @@ function toolSummary(kind: ToolKind, args: JsonObject): string | undefined {
   }
 }
 
+function diffLines(text: unknown, marker: string): string[] {
+  if (typeof text !== "string" || text === "") return [];
+  const lines = text.split(/\r?\n/);
+  if (lines[lines.length - 1] === "") lines.pop();
+  return lines.map((line) => marker + line);
+}
+
+function editList(args: JsonObject): unknown[] {
+  let edits: unknown = args.edits;
+  if (typeof edits === "string") {
+    try {
+      edits = JSON.parse(edits);
+    } catch {
+      edits = undefined;
+    }
+  }
+  const list: unknown[] = Array.isArray(edits) ? [...edits] : isObject(edits) ? [edits] : [];
+  if (typeof args.oldText === "string" && typeof args.newText === "string") {
+    list.push({ oldText: args.oldText, newText: args.newText });
+  }
+  return list;
+}
+
+function argsDiff(toolName: string, args: JsonObject): string | undefined {
+  const lines: string[] = [];
+  if (toolName === "edit") {
+    for (const edit of editList(args)) {
+      if (isObject(edit)) lines.push(...diffLines(edit.oldText, "-"), ...diffLines(edit.newText, "+"));
+    }
+  } else if (toolName === "write") {
+    lines.push(...diffLines(args.content, "+"));
+  }
+  return lines.length > 0 ? lines.join("\n") : undefined;
+}
+
+const NUMBERED_ROW = /^[+\- ]( *\d+) /;
+
+function detailsDiff(result: unknown): string | undefined {
+  if (!isObject(result) || !isObject(result.details) || typeof result.details.diff !== "string") return undefined;
+  const rows = result.details.diff.split("\n");
+  let numberWidth = 0;
+  for (const row of rows) {
+    const match = NUMBERED_ROW.exec(row);
+    if (match) {
+      numberWidth = match[1].length;
+      break;
+    }
+  }
+  if (numberWidth === 0) return undefined;
+  const skip = numberWidth + 2;
+  const lines: string[] = [];
+  for (const row of rows) {
+    if (!/^[+\- ]/.test(row)) return undefined;
+    lines.push(row[0] + row.slice(skip));
+  }
+  return lines.join("\n");
+}
+
 function outputText(result: unknown): string | undefined {
   if (!isObject(result) || !Array.isArray(result.content)) return undefined;
   for (const block of result.content) {
@@ -75,7 +133,7 @@ function addToolStart(builder: TranscriptBuilder, event: JsonObject): void {
   const args = isObject(event.args) ? event.args : {};
   builder.toolStart(
     event.toolCallId,
-    { kind, name: stripMcpPrefix(event.toolName), summary: toolSummary(kind, args) },
+    { kind, name: stripMcpPrefix(event.toolName), summary: toolSummary(kind, args), diff: argsDiff(event.toolName, args) },
     DURATION_ORIGIN,
   );
 }
@@ -83,7 +141,8 @@ function addToolStart(builder: TranscriptBuilder, event: JsonObject): void {
 function addToolEnd(builder: TranscriptBuilder, event: JsonObject): void {
   if (typeof event.toolCallId !== "string") return;
   const duration = typeof event.durationMs === "number" ? event.durationMs : undefined;
-  builder.toolEnd(event.toolCallId, { output: outputText(event.result), isError: event.isError === true }, duration);
+  const diff = event.toolName === "edit" ? detailsDiff(event.result) : undefined;
+  builder.toolEnd(event.toolCallId, { output: outputText(event.result), isError: event.isError === true, diff }, duration);
 }
 
 export function transcriptFromLog(logPath: string): TranscriptStep[] {
