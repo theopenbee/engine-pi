@@ -1,10 +1,9 @@
-import { execFile } from "node:child_process";
 import { createReadStream, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-import { cliVersion, findCli, log, spawnCli } from "@theopenbee/engine-sdk";
+import { cliVersion, execCli, findCli, log, spawnCli } from "@theopenbee/engine-sdk";
 import type { Engine, EngineRequest, ModelInfo, RunParams, RunResult, TokenUsage } from "@theopenbee/engine-sdk";
 
 const EXTENSION_PATH = fileURLToPath(new URL("../assets/openbee-mcp.js", import.meta.url));
@@ -257,7 +256,7 @@ export function parseModels(output: string): ModelInfo[] {
 
 function listModels(command: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(
+    execCli(
       command,
       ["--list-models"],
       { timeout: MODELS_TIMEOUT_MS, killSignal: "SIGKILL", maxBuffer: MODELS_MAX_BUFFER, windowsHide: true },
