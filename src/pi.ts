@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { cliVersion, execCli, findCli, log, spawnCli } from "@theopenbee/engine-sdk";
 import type { Engine, EngineRequest, ModelInfo, RunParams, RunResult, TokenUsage } from "@theopenbee/engine-sdk";
 
+import { transcriptFromLog } from "./transcript.js";
+
 const EXTENSION_PATH = fileURLToPath(new URL("../assets/openbee-mcp.js", import.meta.url));
 const MODELS_TIMEOUT_MS = 20_000;
 const MODELS_MAX_BUFFER = 64 * 1024 * 1024;
@@ -329,5 +331,9 @@ export const engine: Engine = {
 
   async models(req) {
     return parseModels(await listModels(findCli(req.config, "pi")));
+  },
+
+  async transcript(req) {
+    return transcriptFromLog(req.params.log_path);
   },
 };

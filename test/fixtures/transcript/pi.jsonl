@@ -1,0 +1,42 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/work/project"}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"user","content":[{"type":"text","text":"Please tidy up the project."}],"timestamp":1767225600000}}
+{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"Please tidy up the project."}],"timestamp":1767225600000}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"I should look at the files first."},{"type":"text","text":"Let me look at the project."},{"type":"toolCall","id":"call_bash_1","name":"bash","arguments":{"command":"ls -la\necho done"}}],"stopReason":"toolUse","timestamp":1767225601000}}
+{"type":"tool_execution_start","toolCallId":"call_bash_1","toolName":"bash","args":{"command":"ls -la\necho done"}}
+{"type":"tool_execution_end","toolCallId":"call_bash_1","toolName":"bash","result":{"content":[{"type":"text","text":"total 8\nREADME.md\nsrc\ndone\n"}],"details":{}},"isError":false,"durationMs":42}
+{"type":"message_end","message":{"role":"toolResult","toolCallId":"call_bash_1","toolName":"bash","content":[{"type":"text","text":"total 8\nREADME.md\nsrc\ndone\n"}],"isError":false,"timestamp":1767225602000}}
+Warning: reading the configuration took 3s
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":""},{"type":"text","text":"Now reading the readme."},{"type":"text","text":"Then the source."},{"type":"toolCall","id":"call_read_1","name":"read","arguments":{"path":"/work/project/README.md"}}],"stopReason":"toolUse","timestamp":1767225603000}}
+{"type":"tool_execution_start","toolCallId":"call_read_1","toolName":"read","args":{"path":"/work/project/README.md","offset":1}}
+{"type":"tool_execution_end","toolCallId":"call_read_1","toolName":"read","result":{"content":[{"type":"text","text":"# Project\nA smal project."}],"details":{}},"isError":false,"durationMs":3}
+{"type":"tool_execution_start","toolCallId":"call_grep_1","toolName":"grep","args":{"pattern":"TODO","path":"src"}}
+{"type":"tool_execution_end","toolCallId":"call_grep_1","toolName":"grep","result":{"content":[{"type":"text","text":"src/main.ts:3: TODO tidy"}],"details":{}},"isError":false,"durationMs":11}
+{"type":"tool_execution_start","toolCallId":"call_find_1","toolName":"find","args":{"pattern":"*.md"}}
+{"type":"tool_execution_end","toolCallId":"call_find_1","toolName":"find","result":{"content":[{"type":"text","text":"README.md"}],"details":{}},"isError":false,"durationMs":5}
+{"type":"tool_execution_start","toolCallId":"call_ls_1","toolName":"ls","args":{"path":"src"}}
+{"type":"tool_execution_end","toolCallId":"call_ls_1","toolName":"ls","result":{"content":[{"type":"text","text":"main.ts"}],"details":{}},"isError":false,"durationMs":2}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Fixing the typo."},{"type":"toolCall","id":"call_edit_1","name":"edit","arguments":{"path":"/work/project/README.md"}}],"stopReason":"toolUse","timestamp":1767225604000}}
+{"type":"tool_execution_start","toolCallId":"call_edit_1","toolName":"edit","args":{"path":"/work/project/README.md","edits":[{"oldText":"smal","newText":"small"}]}}
+{"type":"tool_execution_end","toolCallId":"call_edit_1","toolName":"edit","result":{"content":[{"type":"text","text":"Successfully replaced 1 block in /work/project/README.md."}],"details":{}},"isError":false,"durationMs":8}
+{"type":"tool_execution_start","toolCallId":"call_write_1","toolName":"write","args":{"path":"/work/project/NOTES.md","content":"notes"}}
+{"type":"tool_execution_end","toolCallId":"call_write_1","toolName":"write","result":{"content":[{"type":"text","text":"EACCES: permission denied"}],"details":{}},"isError":true}
+{"type":"tool_execution_start","toolCallId":"call_bash_2","toolName":"bash","args":{"command":"false"}}
+{"type":"tool_execution_end","toolCallId":"call_bash_2","toolName":"bash","result":{"content":[],"details":{}},"isError":true,"durationMs":7}
+{"type":"tool_execution_start","toolCallId":"call_msg_1","toolName":"mcp__openbee__send_message","args":{"content":"Typo fixed.\nAll done."}}
+{"type":"tool_execution_end","toolCallId":"call_msg_1","toolName":"mcp__openbee__send_message","result":{"content":[{"type":"text","text":"sent"}]},"isError":false,"durationMs":120}
+{"type":"tool_execution_start","toolCallId":"call_other_1","toolName":"mcp__docs__lookup","args":{"limit":5,"query":"typo","lang":"en"}}
+{"type":"tool_execution_start","toolCallId":"call_nested_1","toolName":"read","args":{"path":"/work/project/secret.txt"},"parentToolCallId":"call_other_1"}
+{"type":"tool_execution_end","toolCallId":"call_nested_1","toolName":"read","result":{"content":[{"type":"text","text":"nested output"}],"details":{}},"isError":false,"durationMs":1,"parentToolCallId":"call_other_1"}
+{"type":"tool_execution_end","toolCallId":"call_other_1","toolName":"mcp__docs__lookup","result":{"content":[{"type":"image","data":"AAAA","mimeType":"image/png"},{"type":"text","text":"caption"},{"type":"text","text":"second block"}]},"isError":false,"durationMs":30}
+{"type":"tool_execution_end","toolCallId":"call_ghost_1","toolName":"bash","result":{"content":[{"type":"text","text":"orphan output"}],"details":{}},"isError":false,"durationMs":1}
+{"type":"tool_execution_start","toolCallId":"call_running_1","toolName":"bash","args":{"command":"sleep 100"}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The provider keeps failing."},{"type":"text","text":"Partial answer before the failure."}],"stopReason":"error","errorMessage":"429 rate limit exceeded","timestamp":1767225605000}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Quiet failure."}],"stopReason":"error","errorMessage":"","timestamp":1767225606000}}
+{"type":"auto_retry_start","attempt":1,"maxAttempts":3,"delayMs":2000,"errorMessage":"429 rate limit exceeded"}
+{"type":"auto_retry_end","success":true,"attempt":1}
+{"type":"auto_retry_end","success":false,"attempt":2}
+{"type":"auto_retry_end","success":false,"attempt":3,"finalError":"429 rate limit exceeded after 3 attempts"}
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"Please tidy up the project."}]},{"role":"assistant","content":[{"type":"text","text":"Partial answer before the failure."}],"stopReason":"error","errorMessage":"429 rate limit exceeded"}],"willRetry":false}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"cut of
