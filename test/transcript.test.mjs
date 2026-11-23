@@ -306,12 +306,13 @@ test("details diff is only used for edit tools", async () => {
   assert.equal(await diffOf("mcp__x__edit", { path: "/a", edits: [{ oldText: "a", newText: "b" }] }), undefined);
 });
 
-test("a long edit diff is clipped like tool output", async () => {
+test("a long edit diff is clipped on line boundaries", async () => {
   const content = Array.from({ length: 1000 }, (_, i) => `line ${i}`).join("\n");
   const diff = await diffOf("write", { path: "/a", content });
-  assert.equal(diff.length, 4000);
-  assert.ok(diff.includes("\n…\n"));
-  assert.ok(diff.endsWith("+line 999"));
+  assert.ok(diff.length <= 4000);
+  assert.equal(diff.split("\n").filter((line) => line === "…").length, 1);
+  assert.ok(diff.split("\n").every((line) => line === "…" || /^\+line \d+$/.test(line)));
+  assert.ok(diff.endsWith("\n+line 999"));
 });
 
 test("a tool output uses the first text block", async () => {
