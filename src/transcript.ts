@@ -5,15 +5,15 @@ type JsonObject = Record<string, unknown>;
 
 const DURATION_ORIGIN = 0;
 
-const BUILTIN_KINDS: Record<string, ToolKind> = {
-  bash: "command",
-  read: "read",
-  edit: "edit",
-  write: "edit",
-  grep: "search",
-  find: "search",
-  ls: "search",
-};
+const BUILTIN_KINDS = new Map<string, ToolKind>([
+  ["bash", "command"],
+  ["read", "read"],
+  ["edit", "edit"],
+  ["write", "edit"],
+  ["grep", "search"],
+  ["find", "search"],
+  ["ls", "search"],
+]);
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -21,7 +21,7 @@ function isObject(value: unknown): value is JsonObject {
 
 function toolKind(toolName: string): ToolKind {
   if (toolName.includes("send_message")) return "message";
-  return BUILTIN_KINDS[toolName] ?? "other";
+  return BUILTIN_KINDS.get(toolName) ?? "other";
 }
 
 function firstString(args: JsonObject, keys: string[]): string | undefined {

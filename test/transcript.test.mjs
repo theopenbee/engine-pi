@@ -192,6 +192,9 @@ test("tool kinds follow the tool name", async () => {
     ["codemode", { limit: 3, code: "return 1" }, "other", "codemode", "return 1"],
     ["custom", { limit: 3 }, "other", "custom", undefined],
     ["custom", null, "other", "custom", undefined],
+    ["constructor", { value: "x" }, "other", "constructor", "x"],
+    ["toString", { value: "y" }, "other", "toString", "y"],
+    ["__proto__", { value: "z" }, "other", "__proto__", "z"],
   ];
   for (const [toolName, args, kind, name, summary] of cases) {
     const steps = await transcriptOfEvents(toolEvents(toolName, args, { content: [] }));
