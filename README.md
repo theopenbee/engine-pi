@@ -48,6 +48,10 @@ Then enable the plugin, and pick `pi` as the default engine or per worker.
 
 The plugin checks the setting when it is enabled: it runs `pi --version` and shows the version, or the reason it failed (for example `pi not found on PATH`).
 
+## Model
+
+The worker's **Model** field is passed to pi as `--model <model>`, before the extra args. pi accepts `provider/id`, for example `deepseek/deepseek-flash`. The suggested models come from `pi --list-models`, as `provider/model`. pi only lists providers it has a login or key for, so set the provider key in **Env** first. If the engine args already set a model with `--model`, they win and the Model field is ignored. Without a model, pi uses its own default.
+
 ## Sessions
 
 Every conversation maps to one pi session file:
@@ -61,7 +65,7 @@ This is the plugin's `state_dir/sessions`. openbee never deletes it, so sessions
 ## How it runs pi
 
 ```
-pi --mode json --session <state_dir>/sessions/<session_id>.jsonl -p <prompt> [-e <package>/assets/openbee-mcp.js] [extra args]
+pi --mode json --session <state_dir>/sessions/<session_id>.jsonl -p <prompt> [-e <package>/assets/openbee-mcp.js] [--model <model>] [extra args]
 ```
 
 - When openbee provides its MCP server, the plugin loads the bundled `assets/openbee-mcp.js` extension and sets `OPENBEE_MCP_URL`. The API key reaches pi through the `OPENBEE_API_KEY` environment variable, never through the command line.

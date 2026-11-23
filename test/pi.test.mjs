@@ -12,6 +12,8 @@ import {
   extractPiError,
   extractResultFromLog,
   isStreamingDelta,
+  modelArgs,
+  parseModels,
   stripThinkingSignature,
 } from "../dist/pi.js";
 
@@ -114,6 +116,47 @@ test("checkAgentError on an empty log", () => {
 
 test("checkAgentError on a missing log", () => {
   assert.equal(checkAgentError(join(scratch, "missing.jsonl")), "");
+});
+
+test("modelArgs passes a model as --model", () => {
+  assert.deepEqual(modelArgs("deepseek/deepseek-flash", []), ["--model", "deepseek/deepseek-flash"]);
+  assert.deepEqual(modelArgs("deepseek/deepseek-flash", ["--models", "deepseek/*"]), ["--model", "deepseek/deepseek-flash"]);
+});
+
+test("modelArgs is empty without a model", () => {
+  assert.deepEqual(modelArgs(undefined, []), []);
+  assert.deepEqual(modelArgs("", []), []);
+});
+
+test("modelArgs leaves the model to extra args that already set one", () => {
+  assert.deepEqual(modelArgs("deepseek/deepseek-flash", ["--model", "openai/gpt-4o-mini"]), []);
+  assert.deepEqual(modelArgs("deepseek/deepseek-flash", ["--model=openai/gpt-4o-mini"]), []);
+});
+
+test("parseModels reads provider/model from the model table", () => {
+  const output = [
+    "provider  model            context  max-out  thinking  images",
+    "deepseek  deepseek-flash   1M       384K     yes       yes   ",
+    "",
+    "openai    gpt-4o-mini      128K     16.4K    no        yes",
+  ].join("\r\n");
+  assert.deepEqual(parseModels(output), [{ id: "deepseek/deepseek-flash" }, { id: "openai/gpt-4o-mini" }]);
+});
+
+test("parseModels skips lines before the table header", () => {
+  const output = "Loading extensions\nprovider  model  context\ndeepseek  deepseek-flash  1M\n";
+  assert.deepEqual(parseModels(output), [{ id: "deepseek/deepseek-flash" }]);
+});
+
+test("parseModels returns an empty list without a table", () => {
+  const output = "No models available. Use /login to log into a provider via OAuth or API key. See:\n  /docs/providers.md\n";
+  assert.deepEqual(parseModels(output), []);
+  assert.deepEqual(parseModels('No models matching "x"\n'), []);
+  assert.deepEqual(parseModels(""), []);
+});
+
+test("parseModels returns an empty list for a header without rows", () => {
+  assert.deepEqual(parseModels("provider  model  context  max-out  thinking  images\n"), []);
 });
 
 test("extractPiError returns the first non-JSON line", () => {

@@ -65,11 +65,32 @@ const CANNED_STDOUT = [
   .map((event) => JSON.stringify(event))
   .join("\n");
 
+const MODEL_TABLE = [
+  "provider   model              context  max-out  thinking  images",
+  "anthropic  claude-sonnet-4-5  200K     64K      yes       yes   ",
+  "deepseek   deepseek-flash     1M       384K     yes       yes   ",
+  "deepseek   deepseek-v4-pro    1M       384K     yes       no    ",
+  "",
+].join("\n");
+
 const FAKE_PI = `#!${process.execPath}
 const fs = require("node:fs");
 const args = process.argv.slice(2);
 if (args[0] === "--version") {
   process.stdout.write((process.env.FAKE_PI_VERSION || "0.99.1") + "\\n");
+  process.exit(0);
+}
+if (args[0] === "--list-models") {
+  if (process.env.FAKE_PI_RECORD) fs.writeFileSync(process.env.FAKE_PI_RECORD, JSON.stringify({ argv: args }));
+  const modelsMode = process.env.FAKE_PI_MODELS_MODE || "ok";
+  if (modelsMode === "none") {
+    process.stdout.write("No models available. Use /login to log into a provider via OAuth or API key. See:\\n  /usr/lib/pi/docs/providers.md\\n");
+  } else if (modelsMode === "fail") {
+    process.stderr.write("Loading models\\nError: cannot read models.json\\n\\n");
+    process.exit(1);
+  } else {
+    process.stdout.write(${JSON.stringify(MODEL_TABLE)});
+  }
   process.exit(0);
 }
 const stdin = fs.readFileSync(0, "utf8");
@@ -223,6 +244,78 @@ for (const runtime of runtimes) {
     assert.ok(existsSync(join(req.state_dir, "sessions")));
   });
 
+  t("run puts the model after the prompt and before the extra args", async () => {
+    const record = join(freshDir("rec"), "call.json");
+    const req = baseRequest("run", runParams({ model: "deepseek/deepseek-flash", extra_args: ["--thinking", "high"] }));
+    const raw = await runPlugin(runtime, req, { FAKE_PI_RECORD: record });
+    response(raw);
+    const sessionPath = join(req.state_dir, "sessions", `${req.params.session_id}.jsonl`);
+    assert.deepEqual(recordedCall(record).argv, [
+      "--mode",
+      "json",
+      "--session",
+      sessionPath,
+      "-p",
+      "hello",
+      "--model",
+      "deepseek/deepseek-flash",
+      "--thinking",
+      "high",
+    ]);
+    assert.doesNotMatch(raw.stderr, /already set a model/);
+  });
+
+  t("run puts the model between the MCP extension and the extra args", async () => {
+    const record = join(freshDir("rec"), "call.json");
+    const req = baseRequest(
+      "run",
+      runParams({
+        model: "deepseek/deepseek-flash",
+        extra_args: ["--thinking", "high"],
+        mcp: { name: "openbee", url: "http://127.0.0.1:12350/mcp", api_key_env: "OPENBEE_API_KEY" },
+      }),
+    );
+    response(await runPlugin(runtime, req, { FAKE_PI_RECORD: record }));
+    const sessionPath = join(req.state_dir, "sessions", `${req.params.session_id}.jsonl`);
+    const extension = join(root, "assets", "openbee-mcp.js");
+    assert.deepEqual(recordedCall(record).argv, [
+      "--mode",
+      "json",
+      "--session",
+      sessionPath,
+      "-p",
+      "hello",
+      "-e",
+      extension,
+      "--model",
+      "deepseek/deepseek-flash",
+      "--thinking",
+      "high",
+    ]);
+  });
+
+  t("run lets extra args that already set a model win and warns", async () => {
+    for (const extra of [["--model", "openai/gpt-4o-mini"], ["--model=openai/gpt-4o-mini"]]) {
+      const record = join(freshDir("rec"), "call.json");
+      const req = baseRequest("run", runParams({ model: "deepseek/deepseek-flash", extra_args: extra }));
+      const raw = await runPlugin(runtime, req, { FAKE_PI_RECORD: record });
+      response(raw);
+      const sessionPath = join(req.state_dir, "sessions", `${req.params.session_id}.jsonl`);
+      assert.deepEqual(recordedCall(record).argv, ["--mode", "json", "--session", sessionPath, "-p", "hello", ...extra]);
+      assert.match(raw.stderr, /\[warn\] engine args already set a model, ignoring model "deepseek\/deepseek-flash"/);
+    }
+  });
+
+  t("run passes no model flag when the model is empty or absent", async () => {
+    for (const overrides of [{ model: "" }, {}]) {
+      const record = join(freshDir("rec"), "call.json");
+      const req = baseRequest("run", runParams(overrides));
+      response(await runPlugin(runtime, req, { FAKE_PI_RECORD: record }));
+      const sessionPath = join(req.state_dir, "sessions", `${req.params.session_id}.jsonl`);
+      assert.deepEqual(recordedCall(record).argv, ["--mode", "json", "--session", sessionPath, "-p", "hello"]);
+    }
+  });
+
   t("run writes a compact log", async () => {
     const req = baseRequest("run", runParams());
     response(await runPlugin(runtime, req));
@@ -311,6 +404,32 @@ for (const runtime of runtimes) {
     const req = baseRequest("run", runParams({ session_id: "../escape" }));
     const res = response(await runPlugin(runtime, req));
     assert.deepEqual(res, { error: { message: 'invalid session id "../escape"' } });
+  });
+
+  t("models lists the models in pi's table as provider/model", async () => {
+    const record = join(freshDir("rec"), "call.json");
+    const res = response(await runPlugin(runtime, baseRequest("models", {}), { FAKE_PI_RECORD: record }));
+    assert.deepEqual(res, {
+      result: {
+        models: [{ id: "anthropic/claude-sonnet-4-5" }, { id: "deepseek/deepseek-flash" }, { id: "deepseek/deepseek-v4-pro" }],
+      },
+    });
+    assert.deepEqual(recordedCall(record).argv, ["--list-models"]);
+  });
+
+  t("models returns an empty list when pi has no models", async () => {
+    const res = response(await runPlugin(runtime, baseRequest("models", {}), { FAKE_PI_MODELS_MODE: "none" }));
+    assert.deepEqual(res, { result: { models: [] } });
+  });
+
+  t("models reports the last stderr line when pi fails", async () => {
+    const res = response(await runPlugin(runtime, baseRequest("models", {}), { FAKE_PI_MODELS_MODE: "fail" }));
+    assert.deepEqual(res, { error: { message: "pi exited with code 1: Error: cannot read models.json" } });
+  });
+
+  t("models fails when pi cannot be found", async () => {
+    const res = response(await runPlugin(runtime, baseRequest("models", {}, { config: {} }), { PATH: freshDir("empty-path") }));
+    assert.deepEqual(res, { error: { message: "pi not found on PATH" } });
   });
 
   t("usage reads sessions from state_dir/sessions and omits missing ones", async () => {

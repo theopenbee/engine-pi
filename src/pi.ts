@@ -1,12 +1,15 @@
+import { execFile } from "node:child_process";
 import { createReadStream, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
-import { cliVersion, findCli, spawnCli } from "@theopenbee/engine-sdk";
-import type { Engine, EngineRequest, RunParams, RunResult, TokenUsage } from "@theopenbee/engine-sdk";
+import { cliVersion, findCli, log, spawnCli } from "@theopenbee/engine-sdk";
+import type { Engine, EngineRequest, ModelInfo, RunParams, RunResult, TokenUsage } from "@theopenbee/engine-sdk";
 
 const EXTENSION_PATH = fileURLToPath(new URL("../assets/openbee-mcp.js", import.meta.url));
+const MODELS_TIMEOUT_MS = 20_000;
+const MODELS_MAX_BUFFER = 64 * 1024 * 1024;
 
 type JsonObject = Record<string, unknown>;
 
@@ -21,6 +24,15 @@ function errorMessage(err: unknown): string {
 function isMissing(err: unknown): boolean {
   const code = (err as { code?: unknown } | null)?.code;
   return code === "ENOENT" || code === "ENOTDIR";
+}
+
+export function modelArgs(model: string | undefined, extraArgs: string[]): string[] {
+  if (typeof model !== "string" || model === "") return [];
+  if (extraArgs.some((arg) => arg === "--model" || arg.startsWith("--model="))) {
+    log.warn(`engine args already set a model, ignoring model ${JSON.stringify(model)}`);
+    return [];
+  }
+  return ["--model", model];
 }
 
 export function buildArgs(prompt: string, sessionPath: string, extraArgs: string[]): string[] {
@@ -214,6 +226,56 @@ function exitText(code: number | null, signal: NodeJS.Signals | null): string {
   return `pi exited with code ${code}`;
 }
 
+function lastNonEmptyLine(text: string): string {
+  const lines = text.split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line !== "") return line;
+  }
+  return "";
+}
+
+function failureText(code: number | null, signal: NodeJS.Signals | null, stderr: string): string {
+  const detail = lastNonEmptyLine(stderr);
+  return detail === "" ? exitText(code, signal) : `${exitText(code, signal)}: ${detail}`;
+}
+
+export function parseModels(output: string): ModelInfo[] {
+  const models: ModelInfo[] = [];
+  let inTable = false;
+  for (const line of output.split("\n")) {
+    const columns = line.trim().split(/\s+/);
+    if (!inTable) {
+      inTable = columns[0] === "provider" && columns[1] === "model";
+      continue;
+    }
+    if (columns.length < 2) continue;
+    models.push({ id: `${columns[0]}/${columns[1]}` });
+  }
+  return models;
+}
+
+function listModels(command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      command,
+      ["--list-models"],
+      { timeout: MODELS_TIMEOUT_MS, killSignal: "SIGKILL", maxBuffer: MODELS_MAX_BUFFER, windowsHide: true },
+      (err, stdout, stderr) => {
+        if (!err) {
+          resolve(String(stdout));
+          return;
+        }
+        const { code, killed, signal } = err as { code?: unknown; killed?: boolean; signal?: NodeJS.Signals | null };
+        if (typeof code === "number") reject(new Error(failureText(code, null, String(stderr))));
+        else if (killed) reject(new Error(`pi --list-models timed out after ${MODELS_TIMEOUT_MS / 1000}s`));
+        else if (code === null) reject(new Error(failureText(null, signal ?? null, String(stderr))));
+        else reject(new Error(`pi --list-models failed: ${errorMessage(err)}`));
+      },
+    );
+  });
+}
+
 export const engine: Engine = {
   async check(req) {
     const path = findCli(req.config, "pi");
@@ -232,7 +294,11 @@ export const engine: Engine = {
 
     const mcpURL = params.mcp?.url ?? "";
     const extraArgs = params.extra_args ?? [];
-    const args = buildArgs(params.prompt, sessionPath, mcpURL ? ["-e", EXTENSION_PATH, ...extraArgs] : extraArgs);
+    const args = buildArgs(params.prompt, sessionPath, [
+      ...(mcpURL ? ["-e", EXTENSION_PATH] : []),
+      ...modelArgs(params.model, extraArgs),
+      ...extraArgs,
+    ]);
 
     let outcome;
     try {
@@ -260,5 +326,9 @@ export const engine: Engine = {
 
   async usage(req) {
     return collectUsage(join(req.state_dir, "sessions"), req.params.session_ids ?? []);
+  },
+
+  async models(req) {
+    return parseModels(await listModels(findCli(req.config, "pi")));
   },
 };
